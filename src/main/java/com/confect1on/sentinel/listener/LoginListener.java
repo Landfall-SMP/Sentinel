@@ -22,23 +22,28 @@ public class LoginListener {
     @Subscribe
     public void onLogin(LoginEvent event) {
         UUID uuid = event.getPlayer().getGameProfile().getId();
+        String username = event.getPlayer().getUsername();
 
         try {
             if (database.isLinked(uuid)) {
-                logger.info("✅ {} is linked. Allowing login.", uuid);
+                // save the current username each login for quick lookup
+                database.updateUsername(uuid, username);
+
+                logger.info("✅ {} ({}) is linked. Allowing login.", username, uuid);
                 event.setResult(ComponentResult.allowed());
             } else {
+                // generate & rotate the code
                 String code = generateCode();
                 database.savePendingCode(uuid, code);
 
-                logger.info("❌ {} is not linked. Generated code: {}", uuid, code);
+                logger.info("❌ {} ({}) is not linked. Generated code: {}", username, uuid, code);
                 event.setResult(ComponentResult.denied(
                         Component.text("This Minecraft account is not linked.\n" +
                                 "Use code §b" + code + "§r in Discord to link.")
                 ));
             }
         } catch (Exception e) {
-            logger.error("⚠️ Error during login check for {}", uuid, e);
+            logger.error("⚠️ Error during login check for {} ({})", username, uuid, e);
             event.setResult(ComponentResult.denied(
                     Component.text("A server error occurred. Try again later.")
             ));
