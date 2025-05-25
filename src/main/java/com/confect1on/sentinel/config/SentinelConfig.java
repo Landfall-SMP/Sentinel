@@ -3,6 +3,7 @@ package com.confect1on.sentinel.config;
 public class SentinelConfig {
     public MySQL mysql = new MySQL();
     public Discord discord = new Discord();
+    public BypassServers bypassServers = new BypassServers();
 
     public static class MySQL {
         public String host = "localhost";
@@ -14,5 +15,9 @@ public class SentinelConfig {
 
     public static class Discord {
         public String token = "";
+    }
+
+    public static class BypassServers {
+        public String[] servers = new String[0];
     }
 }

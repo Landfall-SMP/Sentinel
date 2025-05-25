@@ -20,8 +20,8 @@
 1. **Install the plugin**  
    Place the shaded JAR into your `plugins/` folder on your Velocity proxy.
 
-2. **Configure MySQL**  
-   On first run, `plugins/sentinel/config.json` will be created. Fill in your database credentials and Discord token:
+2. **Configure MySQL and Discord**  
+   On first run, `plugins/sentinel/config.json` will be created. Fill in your database credentials, Discord token, and optionally specify bypass servers:
    ```json
    {
      "mysql": {
@@ -31,7 +31,14 @@
        "username": "sentinel_user",
        "password": "password"
      },
-     "discord_token": "your_discord_bot_token"
+     "discord": {
+       "token": "your_discord_bot_token"
+     },
+     "bypassServers": {
+       "servers": ["lobby", "auth"]
+     }
    }
    ```
+
+   The `bypassServers` section allows you to specify server names that should bypass the Discord verification requirement. Players connecting to these servers will be allowed through without needing to link their Discord account. This may be useful for servers like lobbies or auth servers where you want to allow unverified players.
 

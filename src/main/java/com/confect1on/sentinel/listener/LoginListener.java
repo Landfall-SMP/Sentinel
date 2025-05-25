@@ -1,6 +1,7 @@
 package com.confect1on.sentinel.listener;
 
 import com.confect1on.sentinel.db.DatabaseManager;
+import com.confect1on.sentinel.config.SentinelConfig;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.ResultedEvent.ComponentResult;
@@ -13,9 +14,11 @@ public class LoginListener {
 
     private final DatabaseManager database;
     private final Logger logger;
+    private final SentinelConfig config;
 
-    public LoginListener(DatabaseManager database, Logger logger) {
+    public LoginListener(DatabaseManager database, SentinelConfig config, Logger logger) {
         this.database = database;
+        this.config = config;
         this.logger = logger;
     }
 
@@ -23,6 +26,23 @@ public class LoginListener {
     public void onLogin(LoginEvent event) {
         UUID uuid = event.getPlayer().getGameProfile().getId();
         String username = event.getPlayer().getUsername();
+        
+        // Get the virtual host they're connecting through
+        String virtualHost = event.getPlayer().getVirtualHost()
+            .map(host -> host.getHostString())
+            .orElse("");
+
+        // Check if this is a bypass server based on the virtual host
+        if (virtualHost != null && !virtualHost.isEmpty()) {
+            for (String server : config.bypassServers.servers) {
+                if (virtualHost.toLowerCase().contains(server.toLowerCase())) {
+                    logger.info("✅ {} ({}) connecting through bypass virtual host {}. Allowing login.", 
+                        username, uuid, virtualHost);
+                    event.setResult(ComponentResult.allowed());
+                    return;
+                }
+            }
+        }
 
         try {
             if (database.isLinked(uuid)) {

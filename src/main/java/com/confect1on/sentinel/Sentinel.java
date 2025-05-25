@@ -38,7 +38,7 @@ public class Sentinel {
         }
 
         // register login guard
-        server.getEventManager().register(this, new LoginListener(database, logger));
+        server.getEventManager().register(this, new LoginListener(database, config, logger));
 
         // start Discord if we have a token
         if (config.discord.token != null && !config.discord.token.isBlank()) {
