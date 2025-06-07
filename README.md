@@ -15,10 +15,6 @@
     Toggle quarantine role for a user (Minecraft username or Discord @mention).
     Requires staff role permissions. Automatically kicks online players when quarantined.
 
-### In-Game Commands
-    /link
-    Generates a unique code to link your Minecraft account to Discord.
-
 ## Features
 
 - **Account Linking**: Secure verification system linking Minecraft accounts to Discord
