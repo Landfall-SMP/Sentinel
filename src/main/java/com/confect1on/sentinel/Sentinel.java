@@ -37,13 +37,10 @@ public class Sentinel {
             return;
         }
 
-        // register login guard
-        server.getEventManager().register(this, new LoginListener(database, config, logger));
-
         // start Discord if we have a token
         if (config.discord.token != null && !config.discord.token.isBlank()) {
             try {
-                discord = new DiscordManager(database, config.discord.token, logger);
+                discord = new DiscordManager(database, config.discord.token, config.discord.linkedRole, config.discord.quarantineRole, config.discord.staffRoles, server, config, logger);
                 discord.start();
             } catch (LoginException e) {
                 logger.error("❌ Failed to start Discord bot", e);
@@ -51,6 +48,9 @@ public class Sentinel {
         } else {
             logger.warn("❌ Failed to start Discord bot, no token provided!");
         }
+
+        // register login guard (after Discord is initialized)
+        server.getEventManager().register(this, new LoginListener(database, config, discord, logger));
 
         logger.info("✅ Sentinel up and running.");
     }

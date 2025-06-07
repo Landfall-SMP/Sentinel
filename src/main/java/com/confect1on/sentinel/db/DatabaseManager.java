@@ -9,6 +9,8 @@ import java.sql.*;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.Optional;
+import java.util.List;
+import java.util.ArrayList;
 
 public class DatabaseManager {
 
@@ -92,7 +94,7 @@ public class DatabaseManager {
     }
 
     /**
-     * Cache or update the player’s last‐seen username.
+     * Cache or update the player's last-seen username.
      */
     public void updateUsername(UUID uuid, String username) {
         String sql = "UPDATE linked_accounts SET username = ? WHERE uuid = ?";
@@ -168,7 +170,7 @@ public class DatabaseManager {
         String check  = "SELECT 1 FROM linked_accounts WHERE discord_id = ?";
         String insert = "INSERT INTO linked_accounts (uuid, discord_id) VALUES (?, ?)";
         try (Connection conn = dataSource.getConnection()) {
-            // ensure this Discord ID isn’t already linked
+            // ensure this Discord ID isn't already linked
             try (PreparedStatement ps = conn.prepareStatement(check)) {
                 ps.setString(1, discordId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -226,6 +228,62 @@ public class DatabaseManager {
             logger.error("Error looking up by username {}", username, e);
             return Optional.empty();
         }
+    }
+
+    /**
+     * Gets all linked accounts for role synchronization.
+     * Returns a list of all Discord IDs that should have the linked role.
+     */
+    public List<String> getAllLinkedDiscordIds() {
+        String sql = "SELECT discord_id FROM linked_accounts";
+        List<String> discordIds = new ArrayList<>();
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                discordIds.add(rs.getString("discord_id"));
+            }
+        } catch (SQLException e) {
+            logger.error("Error getting all linked Discord IDs", e);
+        }
+        return discordIds;
+    }
+
+    /**
+     * Removes a linked account by Discord ID.
+     * Used when a user leaves the Discord server.
+     */
+    public boolean removeLinkByDiscordId(String discordId) {
+        String sql = "DELETE FROM linked_accounts WHERE discord_id = ?";
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, discordId);
+            int rowsAffected = ps.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            logger.error("Error removing link for Discord ID {}", discordId, e);
+            return false;
+        }
+    }
+
+    /**
+     * Gets the Discord ID for a linked UUID.
+     * Returns null if the UUID is not linked.
+     */
+    public String getDiscordId(UUID uuid) {
+        String sql = "SELECT discord_id FROM linked_accounts WHERE uuid = ?";
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, uuid.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("discord_id");
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error getting Discord ID for UUID {}", uuid, e);
+        }
+        return null;
     }
 
     public void close() {

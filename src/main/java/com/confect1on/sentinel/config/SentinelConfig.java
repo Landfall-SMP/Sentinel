@@ -15,6 +15,10 @@ public class SentinelConfig {
 
     public static class Discord {
         public String token = "";
+        public String linkedRole = ""; // Role ID to assign to linked players (optional)
+        public String quarantineRole = ""; // Role ID that prevents login (optional)
+        public String quarantineMessage = "Your account has been quarantined. Contact an administrator."; // Message shown to quarantined users
+        public String[] staffRoles = new String[0]; // Role IDs that can use staff cmds (optional)
     }
 
     public static class BypassServers {

@@ -2,6 +2,7 @@ package com.confect1on.sentinel.listener;
 
 import com.confect1on.sentinel.db.DatabaseManager;
 import com.confect1on.sentinel.config.SentinelConfig;
+import com.confect1on.sentinel.discord.DiscordManager;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.ResultedEvent.ComponentResult;
@@ -15,10 +16,12 @@ public class LoginListener {
     private final DatabaseManager database;
     private final Logger logger;
     private final SentinelConfig config;
+    private final DiscordManager discordManager;
 
-    public LoginListener(DatabaseManager database, SentinelConfig config, Logger logger) {
+    public LoginListener(DatabaseManager database, SentinelConfig config, DiscordManager discordManager, Logger logger) {
         this.database = database;
         this.config = config;
+        this.discordManager = discordManager;
         this.logger = logger;
     }
 
@@ -46,12 +49,57 @@ public class LoginListener {
 
         try {
             if (database.isLinked(uuid)) {
+                String discordId = database.getDiscordId(uuid);
+                
+                // Check if Discord user is still in the server and handle cleanup
+                if (discordManager != null && discordManager.getQuarantineChecker() != null) {
+                    // This will check if the user is still in Discord and clean up if they left
+                    boolean isStillInDiscord = isDiscordUserStillInServer(discordId);
+                    
+                    if (!isStillInDiscord) {
+                        // User was kicked/left Discord, they're no longer linked
+                        logger.info("🔗 {} ({}) was linked but Discord user {} is no longer in server. Generating new link code.", 
+                            username, uuid, discordId);
+                        
+                        // Generate a new link code
+                        String code = generateCode();
+                        database.savePendingCode(uuid, code);
+                        
+                        event.setResult(ComponentResult.denied(
+                            Component.text("Your Discord account is no longer linked.\n" +
+                                "Use code §b" + code + "§r in Discord to link.")
+                        ));
+                        return;
+                    }
+                    
+                    // Check for quarantine if they're still in Discord
+                    if (discordManager.getQuarantineChecker().isQuarantined(discordId)) {
+                        logger.debug("🚫 {} ({}) is quarantined. Denying login.", username, uuid);
+                        event.setResult(ComponentResult.denied(
+                                Component.text(config.discord.quarantineMessage)
+                        ));
+                        return;
+                    }
+                }
+                
                 // save the current username each login for quick lookup
                 database.updateUsername(uuid, username);
 
-                logger.info("✅ {} ({}) is linked. Allowing login.", username, uuid);
+                logger.debug("✅ {} ({}) is linked. Allowing login.", username, uuid);
                 event.setResult(ComponentResult.allowed());
             } else {
+                // Check if they were linked but removed due to leaving Discord
+                String discordId = database.getDiscordId(uuid);
+                if (discordId != null) {
+                    // THIS SHOULD NEVER HAPPEN!
+                    logger.warn("🔗 {} ({}) was linked but needs to relink.", username, uuid);
+                    event.setResult(ComponentResult.denied(
+                            Component.text("Your Discord account is no longer linked.\n" +
+                                    "Please contact an administrator to relink your account.")
+                    ));
+                    return;
+                }
+                
                 // generate & rotate the code
                 String code = generateCode();
                 database.savePendingCode(uuid, code);
@@ -67,6 +115,22 @@ public class LoginListener {
             event.setResult(ComponentResult.denied(
                     Component.text("A server error occurred. Try again later.")
             ));
+        }
+    }
+
+    /**
+     * Checks if a Discord user is still in the server.
+     * If they're not, removes them from the database.
+     */
+    private boolean isDiscordUserStillInServer(String discordId) {
+        if (discordId == null) return false;
+        
+        try {
+            // Use the QuarantineChecker's method to check if user is still in Discord
+            return discordManager.getQuarantineChecker().isUserStillInDiscord(discordId);
+        } catch (Exception e) {
+            logger.error("🔗 Error checking if Discord user {} is still in server", discordId, e);
+            return true; // Default to assuming they're still there on error
         }
     }
 
